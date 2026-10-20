@@ -1,0 +1,213 @@
+sources:
+  - name: facebook
+    database: marketing_analytics_cde
+    description: "This is the raw data ingested from the facebook platform (static)"
+    schema: staging
+    config:
+      enabled: true
+      meta:
+        owner: "@cde_engineer"
+      freshness:
+        warn_after:
+          count: 10
+          period: day
+
+    tables:
+      - name: campaigns
+        description: "This contains campaign data from facebook platform (static)"
+        identifier: fb_campaigns
+        config:
+          enabled: true
+          event_time: campaign_updated_at
+        columns:
+          - name: campaign_id
+            description: "Unique identifier for each campaign"
+            data_tests:
+              - unique
+              - not_null
+
+          - name: campaign_name
+            description: "The name of the campaign "
+            data_tests:
+              - not_null
+
+          - name: campaign_updated_at
+            description: "The timestamp when the campaign was updated"
+            data_tests:
+              - not_null
+
+      - name: adgroups
+        description: "adgroups data from  facebook platform (static)"
+        identifier: fb_adgroups
+        config:
+          enabled: true
+          event_time: ad_group_updated_at
+        columns:
+          - name: ad_group_id
+            description: "Unique identifier for each ad_group"
+            data_tests:
+              - unique
+              - not_null
+
+          - name: ad_group_name
+            description: "The name of the ad_group"
+            data_tests:
+              - not_null
+
+          - name: ad_group_updated_at
+            description: "The timestamp when the ad_group was updated"
+            data_tests:
+              - not_null
+
+      - name: ads
+        description: "ads data from  facebook platform (static)"
+        identifier: fb_ads
+        config:
+          enabled: true
+          event_time: ad_updated_at
+        columns:
+          - name: ad_id
+            description: "Unique identifier for each ad"
+            data_tests:
+              - unique
+              - not_null
+
+          - name: ad_group_id
+            description: "The id of the ad_group that the ad belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('facebook', 'adgroups')
+                    field: ad_group_id
+
+          - name: campaign_id
+            description: "The id of the campaign program the ad belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('facebook', 'campaigns')
+                    field: campaign_id
+          
+          - name: account_id
+            description: "The id of the account the particular ad belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('facebook', 'accounts')
+                    field: account_id
+          
+          - name: ad_name
+            description: "The name of the ad"
+            data_tests:
+              - not_null
+          
+          - name: ad_status
+            description: "The status of the ad"
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['ARCHIVED', 'PAUSED', 'ACTIVE', 'DELETED']
+          
+          - name: ad_updated_at
+            description: "The timestamp the ad was updated"
+            data_tests:
+              - not_null
+
+
+      - name: accounts
+        description: "Accounts data from facebook platform (static)"
+        identifier: fb_accounts
+        config:
+          enabled: true
+          event_time: account_updated_at
+        columns:
+          - name: account_id
+            description: "Unique identifier for each account"
+            data_tests:
+              - unique
+              - not_null
+          
+          - name: account_name
+            description: "The name of each account"
+            data_tests:
+              - not_null
+          
+          - name: ad_currency_code
+            description: "The currency code of the account"
+            data_tests:
+              - not_null
+          
+          - name: account_created_at
+            description: "The timestamp at which the ad account was created"
+            data_tests:
+              - not_null
+          
+          - name: account_updated_at
+            description: "The timestamp at which the ad account was updated"
+            data_tests:
+              - not_null
+
+      - name: ads_stats
+        description: "The ads stats on spend, clicks and impression data from  facebook platform (static)"
+        identifier: fb_ads_stats
+        config:
+          enabled: true
+          event_time: ad_date
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns:
+                  - ad_id
+                  - ad_date
+
+        columns:
+          - name: ad_id
+            description: "Identifier for each ad the stats belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('facebook', 'ads')
+                    field: ad_id
+          
+          - name: account_id
+            description: "The identifier of the account the ad stats belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('facebook', 'accounts')
+                    field: account_id
+          
+          - name: ad_spend
+            description: "The spend amount of the ads"
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+          
+          - name: ad_impressions
+            description: "The impressions generated by each ad"
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+          
+          - name: ad_clicks
+            description: "The number of clicks gotten for each ad"
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+          
+          - name: ad_date
+            description: "The date at which the ad stat was captured"
+            data_tests:
+              - not_null

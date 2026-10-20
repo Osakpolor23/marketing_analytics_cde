@@ -1,0 +1,180 @@
+sources:
+  - name: snapchat
+    database: marketing_analytics_cde
+    description: "Raw data ingested from the Snapchat platform (static)"
+    schema: staging
+    config:
+      enabled: true
+      meta:
+        owner: "@cde_engineer"
+      freshness:
+        warn_after:
+          count: 10
+          period: day
+
+    tables:
+      - name: campaign_history
+        description: "Campaign history from the Snapchat platform (static)"
+        identifier: snap_campaign_history
+        config:
+          enabled: true
+        columns:
+          - name: campaign_id
+            description: "Unique identifier for each campaign"
+            data_tests:
+              - unique
+              - not_null
+
+          - name: account_id
+            description: "The id of the account the campaign belongs to"
+            data_tests:
+              - not_null
+
+          - name: campaign_name
+            description: "The name of the campaign"
+            data_tests:
+              - not_null
+
+      - name: adgroup_history
+        description: "Ad group history from the Snapchat platform (static). One row per version of an ad group."
+        identifier: snap_adgroup_history
+        config:
+          enabled: true
+          event_time: ad_group_updated_at
+        columns:
+          - name: _surrogate_key
+            description: "Surrogate key for each ad group history row"
+            data_tests:
+              - unique
+              - not_null
+
+          - name: ad_group_id
+            description: "The id of the ad group. Not unique, since an ad group can have several history rows"
+            data_tests:
+              - not_null
+
+          - name: campaign_id
+            description: "The id of the campaign the ad group belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('snapchat', 'campaign_history')
+                    field: campaign_id
+
+          - name: ad_group_name
+            description: "The name of the ad group"
+            data_tests:
+              - not_null
+
+          - name: ad_group_updated_at
+            description: "The timestamp when the ad group was updated"
+            data_tests:
+              - not_null
+
+      - name: ad_history
+        description: "Ad history from the Snapchat platform (static)"
+        identifier: snap_ad_history
+        config:
+          enabled: true
+          event_time: ad_detail_updated_at
+        columns:
+          - name: ad_id
+            description: "Unique identifier for each ad"
+            data_tests:
+              - not_null
+              - unique:
+                  config:
+                    severity: warn
+
+          - name: ad_group_id
+            description: "The id of the ad group the ad belongs to"
+            data_tests:
+              - not_null
+              - relationships:
+                  config:
+                    severity: warn
+                  arguments:
+                    to: source('snapchat', 'adgroup_history')
+                    field: ad_group_id
+
+          - name: ad_name
+            description: "The name of the ad"
+            data_tests:
+              - not_null
+
+          - name: ad_detail_updated_at
+            description: "The timestamp when the ad was updated"
+            data_tests:
+              - not_null
+
+      - name: ads_stats
+        description: "Daily ad stats (spend, clicks, impressions) by country from the Snapchat platform (static)"
+        identifier: snap_ads_stats
+        config:
+          enabled: true
+          event_time: ad_date
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns:
+                  - ad_detail_id
+                  - ad_country
+                  - ad_date
+        columns:
+          - name: ad_detail_id
+            description: "The id of the ad the stats belong to (matches ad_history.ad_id)"
+            data_tests:
+              - not_null
+              - relationships:
+                  config:
+                    severity: warn
+                  arguments:
+                    to: source('snapchat', 'ad_history')
+                    field: ad_id
+
+          - name: ad_currency_code
+            description: "The currency code of the spend amount"
+            data_tests:
+              - not_null
+
+          - name: ad_country
+            description: "The country the stats were recorded for (lowercase ISO code)"
+            data_tests:
+              - not_null
+
+          - name: ad_spend
+            description: "The amount spent on the ad, in ad_currency_code"
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+
+          - name: ad_impressions
+            description: "The number of impressions generated by the ad"
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+
+          - name: ad_clicks
+            description: "The number of clicks received by the ad. Can be null"
+            data_tests:
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+
+          - name: ad_date
+            description: "The date the ad stats were captured"
+            data_tests:
+              - not_null
+
+          - name: data_src
+            description: "The system the row was sourced from"
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['snapchat_ads']
