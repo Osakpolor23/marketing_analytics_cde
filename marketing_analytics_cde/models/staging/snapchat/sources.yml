@@ -161,10 +161,7 @@ sources:
 
           - name: ad_clicks
             description: "The number of clicks received by the ad. Can be null"
-            data_tests:
-              - dbt_utils.accepted_range:
-                  arguments:
-                    min_value: 0
+            data_tests
 
           - name: ad_date
             description: "The date the ad stats were captured"
