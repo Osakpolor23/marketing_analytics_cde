@@ -54,3 +54,11 @@ jobs:
         with:
           project-dir: marketing_analytics_cde
           github-token: ${{ github.token }}
+          full-run: ${{ inputs.full-run }}
+          dbt-args: ${{ inputs.dbt-args }}
+
+
+
+      
+
+         

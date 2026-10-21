@@ -16,10 +16,20 @@ inputs:
     description: Token used to look up and download artifacts from previous runs
     required: true
 
+  full-run:
+    description: Build the whole project instead of only modified models
+    required: false
+    default: 'false'
+
+  dbt-args:
+    description: Extra args passed to dbt build on a full run
+    required: false
+    default: ''
+
 runs:
   using: "composite"
   steps:
-    # STEP 1: fetch the last production manifest (the "state" used for slim CI)
+    # STEP 1: fetch the last production manifest 
     - name: Get dbt prod manifest.json
       shell: bash
       working-directory: ${{ inputs.project-dir }}
@@ -27,7 +37,6 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
         mkdir -p target_prod
-        # Latest non-expired production manifest uploaded from main
         RUN_ID=$(gh api \
           "repos/${{ github.repository }}/actions/artifacts?name=${{ inputs.manifest-artifact-name }}&per_page=20" \
           --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")][0].workflow_run.id // empty')
@@ -42,3 +51,31 @@ runs:
           echo "::warning::No production manifest found, building the full project without state comparison."
           echo "HAS_PROD_STATE=false" >> $GITHUB_ENV
         fi
+
+    # STEP 2: install dbt packages 
+    - name: dbt deps
+      shell: bash
+      working-directory: ${{ inputs.project-dir }}
+      run: uv run dbt deps
+
+    # STEP 3: build 
+    - name: dbt build
+      shell: bash
+      working-directory: ${{ inputs.project-dir }}
+      run: |
+        if [[ "${{ inputs.full-run }}" == "true" || "$HAS_PROD_STATE" != "true" ]]; then
+          echo "Running full build against target: $DBT_TARGET"
+          uv run dbt build --target "$DBT_TARGET" ${{ inputs.dbt-args }}
+        else
+          echo "Running slim build against target: $DBT_TARGET"
+          uv run dbt build --target "$DBT_TARGET" \
+            --select state:modified+ --defer --state target_prod
+        fi
+
+    # STEP 4: publish the manifest so the next run has a baseline
+    - name: Upload prod manifest
+      if: env.DBT_TARGET == 'production'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.manifest-artifact-name }}
+        path: ${{ inputs.project-dir }}/target/manifest.json
