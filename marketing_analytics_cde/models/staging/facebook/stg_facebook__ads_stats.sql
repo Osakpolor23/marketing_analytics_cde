@@ -12,8 +12,8 @@ renamed as (
         account_id,
         cast(ad_date as date) as ad_date,
         cast(ad_spend as decimal(18, 6)) as ad_spend,
-        cast(ad_impressions as bigint) as ad_impressions,
-        cast(ad_clicks as bigint) as ad_clicks
+        coalesce(try_cast(nullif(ad_impressions, 'null') as bigint), 0) as ad_impressions,
+        coalesce(try_cast(nullif(ad_clicks, 'null') as bigint), 0) as ad_clicks
 
     from source
 

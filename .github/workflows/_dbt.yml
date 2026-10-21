@@ -31,6 +31,7 @@ jobs:
       HOST: ${{ vars.HOST }}
       HTTP_PATH: ${{ vars.HTTP_PATH }}
       CI_CATALOG: ${{ vars.CI_CATALOG }}
+      CI_SCHEMA: ${{ vars.CI_SCHEMA }}
       STAGING_CATALOG: ${{ vars.STAGING_CATALOG }}
       STAGING_SCHEMA: ${{ vars.STAGING_SCHEMA }}
       PROD_CATALOG: ${{ vars.PROD_CATALOG }}
@@ -54,3 +55,11 @@ jobs:
         with:
           project-dir: marketing_analytics_cde
           github-token: ${{ github.token }}
+          full-run: ${{ inputs.full-run }}
+          dbt-args: ${{ inputs.dbt-args }}
+
+
+
+      
+
+         
