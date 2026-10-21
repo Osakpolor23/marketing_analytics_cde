@@ -1,0 +1,44 @@
+name: DBT CI/CD
+description: Reusable dbt CI/CD job
+
+inputs:
+  project-dir:
+    description: Directory containing dbt_project.yml
+    required: false
+    default: 'marketing_analytics_cde'
+
+  manifest-artifact-name:
+    description: Name of the GitHub artifact holding the production manifest.json
+    required: false
+    default: dbt-prod-manifest
+
+  github-token:
+    description: Token used to look up and download artifacts from previous runs
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    # STEP 1: fetch the last production manifest (the "state" used for slim CI)
+    - name: Get dbt prod manifest.json
+      shell: bash
+      working-directory: ${{ inputs.project-dir }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        mkdir -p target_prod
+        # Latest non-expired production manifest uploaded from main
+        RUN_ID=$(gh api \
+          "repos/${{ github.repository }}/actions/artifacts?name=${{ inputs.manifest-artifact-name }}&per_page=20" \
+          --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")][0].workflow_run.id // empty')
+
+        if [[ -n "$RUN_ID" ]]; then
+          gh run download "$RUN_ID" \
+            --repo ${{ github.repository }} \
+            --name ${{ inputs.manifest-artifact-name }} \
+            --dir target_prod
+          echo "HAS_PROD_STATE=true" >> $GITHUB_ENV
+        else
+          echo "::warning::No production manifest found, building the full project without state comparison."
+          echo "HAS_PROD_STATE=false" >> $GITHUB_ENV
+        fi

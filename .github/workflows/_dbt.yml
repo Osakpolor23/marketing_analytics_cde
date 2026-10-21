@@ -1,0 +1,56 @@
+name: dbt (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      dbt-target:
+        description: dbt target to run against (ci, staging, production)
+        required: true
+        type: string
+      full-run:
+        description: Build the whole project (daily run) instead of only modified models
+        required: false
+        type: boolean
+        default: false
+      dbt-args:
+        description: Extra args passed to dbt build on a full run
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-databricks:
+    runs-on: ubuntu-latest
+    env:
+      DBT_TARGET: ${{ inputs.dbt-target }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/marketing_analytics_cde
+      HOST: ${{ vars.HOST }}
+      HTTP_PATH: ${{ vars.HTTP_PATH }}
+      CI_CATALOG: ${{ vars.CI_CATALOG }}
+      STAGING_CATALOG: ${{ vars.STAGING_CATALOG }}
+      STAGING_SCHEMA: ${{ vars.STAGING_SCHEMA }}
+      PROD_CATALOG: ${{ vars.PROD_CATALOG }}
+      PROD_SCHEMA: ${{ vars.PROD_SCHEMA }}
+      DBX_ID_APPLICATION_ID: ${{ secrets.DBX_ID_APPLICATION_ID }}
+      DBX_SECRET: ${{ secrets.DBX_SECRET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Activate uv
+        uses: ./.github/actions/setup_uv
+        with:
+          python-version: '3.12'
+          uv-version: '0.12.23'
+          uv-sync-extra-args: '--locked'
+          working-directory: '.'   
+
+      - name: CI/CD
+        uses: ./.github/actions/dbt_ci_cd
+        with:
+          project-dir: marketing_analytics_cde
+          github-token: ${{ github.token }}
