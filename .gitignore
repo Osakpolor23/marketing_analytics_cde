@@ -4,3 +4,4 @@ logs/
 .env
 .venv
 marketing_analytics_cde/.user.yml
+marketing_analytics_cde/target_prod/

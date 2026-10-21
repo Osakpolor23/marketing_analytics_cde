@@ -1,0 +1,36 @@
+name: Clean up on PR closed
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  clean-up-ci-schema-databricks:
+    runs-on: ubuntu-latest
+    env:
+      DBT_TARGET: ci
+      DBT_PROFILES_DIR: ${{ github.workspace }}/marketing_analytics_cde
+      CI_SCHEMA: pr_${{ github.event.number }}   
+      HOST: ${{ vars.HOST }}
+      HTTP_PATH: ${{ vars.HTTP_PATH }}
+      CI_CATALOG: ${{ vars.CI_CATALOG }}
+      DBX_ID_APPLICATION_ID: ${{ secrets.DBX_ID_APPLICATION_ID }}
+      DBX_SECRET: ${{ secrets.DBX_SECRET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Activate uv
+        uses: ./.github/actions/setup_uv
+        with:
+          working-directory: '.'
+
+      - name: Delete CI schema
+        shell: bash
+        working-directory: marketing_analytics_cde
+        run: |
+          uv run dbt deps
+          uv run dbt run-operation drop_schemas --args "{dry_run: False}"

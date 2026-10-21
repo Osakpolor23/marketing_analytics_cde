@@ -1,0 +1,13 @@
+name: Export CI schema
+description: Export a per-branch CI schema name to the job environment
+runs:
+  using: "composite"
+  steps:
+    - name: Set CI schema
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        BRANCH: ${{ github.head_ref }}
+      run: |
+        safe_branch="${BRANCH//[^a-zA-Z0-9]/_}"
+        echo "CI_SCHEMA=pr_${safe_branch,,}" >> "$GITHUB_ENV"
